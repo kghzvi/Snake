@@ -154,7 +154,7 @@ void setJoystickState(int iX_Value, int iY_Value, int iButtonState)
     }
     else {
         stJoystickState.eButton = E_Button::NotPressed;
-    }"};
+    }
 }
 
 void task(void *pvParameters)
