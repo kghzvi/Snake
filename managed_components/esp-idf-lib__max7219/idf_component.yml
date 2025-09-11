@@ -1,0 +1,28 @@
+dependencies: {}
+description: Driver for 8-Digit LED display drivers, MAX7219/MAX7221
+discussion: https://github.com/esp-idf-lib/core/discussions
+documentation: https://esp-idf-lib.github.io/max7219/
+files:
+  exclude:
+  - docs/**/*
+issues: https://github.com/esp-idf-lib/max7219/issues
+license: BSD-3
+maintainers:
+- Ruslan V. Uss (@UncleRus) <unclerus@gmail.com>
+repository: git://github.com/esp-idf-lib/max7219.git
+repository_info:
+  commit_sha: 850d448cb5693d41c22407cdc4b9adc8723f925e
+  path: .
+targets:
+- esp32
+- esp32c2
+- esp32c3
+- esp32c5
+- esp32c6
+- esp32c61
+- esp32h2
+- esp32p4
+- esp32s2
+- esp32s3
+url: https://github.com/esp-idf-lib/core
+version: 1.0.7

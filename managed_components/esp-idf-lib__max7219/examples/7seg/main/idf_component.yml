@@ -1,0 +1,7 @@
+dependencies:
+  esp-idf-lib/esp_idf_lib_helpers:
+    version: '*'
+  esp-idf-lib/max7219:
+    version: '*'
+description: 7seg
+version: 1.0.0
