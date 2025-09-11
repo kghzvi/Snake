@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <inttypes.h>
 #include <stdint.h>
+#include <Snake.h>
 extern "C" {
     #include "sdkconfig.h"
     #include "freertos/FreeRTOS.h"
