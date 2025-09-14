@@ -19,6 +19,7 @@
   "idf.flashType": "UART",
   "files.associations": {
     "limits": "cpp",
-    "format": "cpp"
+    "format": "cpp",
+    "array": "cpp"
   }
 }

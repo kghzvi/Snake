@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <inttypes.h>
 #include <stdint.h>
+#include <array>
 #include <Snake.h>
 extern "C" {
     #include "sdkconfig.h"
@@ -31,6 +32,7 @@ extern "C" {
 #define CASCADE_SIZE  1  // Anzahl der MAX7219-Module
 }
 
+/*
 enum class E_LeftRight { Center, Left, Right };
 enum class E_UpDown { Center, Up, Down };
 enum class E_Button { NotPressed, Pressed };
@@ -41,6 +43,9 @@ struct ST_JoystickState
     E_UpDown eUpDown;
     E_Button eButton;
 };
+*/
+
+enum class E_Button { NotPressed, Pressed };
 
 max7219_t dev = {
     .digits = 0,
@@ -55,8 +60,12 @@ adc_channel_t channel[2] = {ADC_CHANNEL_4, ADC_CHANNEL_5};
 int iX_Value;
 int iY_Value;
 int iButtonState;
+E_Direction eJoystickDirection = E_Direction::Right;
 
-ST_JoystickState stJoystickState = {.eLeftRight = E_LeftRight::Center, .eUpDown = E_UpDown::Center, .eButton = E_Button::NotPressed};
+//ST_JoystickState stJoystickState = {.eLeftRight = E_LeftRight::Center, .eUpDown = E_UpDown::Center, .eButton = E_Button::NotPressed};
+
+ST_Pixel initialBody[64] = { {2,4}, {1,4}, {0,4} };
+Snake snake(3, initialBody);
 
 static void continuous_adc_init(adc_channel_t *channel, uint8_t channel_num, adc_continuous_handle_t *out_handle)
 {
@@ -107,8 +116,8 @@ void init_joystick_button()
 void readJoystickAdc() {
     uint8_t result[128];
     uint32_t ret_num = 0;
-    iX_Value = 0;
-    iY_Value = 0;
+    //iX_Value = 0;
+    //iY_Value = 0;
 
     if (adc_continuous_read(adc_handle, result, sizeof(result), &ret_num, 0) == ESP_OK) {
 
@@ -124,41 +133,57 @@ void readJoystickAdc() {
     }
 }
 
-void setJoystickState(int iX_Value, int iY_Value, int iButtonState)
-{
-    if (iX_Value < 1600) {
-        stJoystickState.eLeftRight = E_LeftRight::Left;
-        printf("Turn left detected.\n");
-    }
-    else if (iX_Value > 2000) {
-        stJoystickState.eLeftRight = E_LeftRight::Right;
-        printf("Turn right detected.\n");
+E_Direction setJoystickDirection(int iX_Value, int iY_Value) {
+    if (iX_Value == 0 && iY_Value == 0) {
+        // faulty joystick sensor reading
+        printf("Faulty sensor reading: %d, %d\n", iX_Value, iY_Value);
+        return E_Direction::Center;
     }
     else {
-        stJoystickState.eLeftRight = E_LeftRight::Center;
-    }
+        int iX_Offset = iX_Value - 1800;
+        int iY_Offset = iY_Value - 1800;
 
-    if (iY_Value < 1600) {
-        stJoystickState.eUpDown = E_UpDown::Up;
-        printf("Move up detected.\n");
-    }    
-    else if (iY_Value > 2000) {
-        stJoystickState.eUpDown = E_UpDown::Down;
-        printf("Move down detected.\n");
-    }
-    else {
-        stJoystickState.eUpDown = E_UpDown::Center;
-    }
-
-    if (iButtonState == 0) {
-        stJoystickState.eButton = E_Button::Pressed;
-    }
-    else {
-        stJoystickState.eButton = E_Button::NotPressed;
+        if (abs(iY_Offset) > abs(iX_Offset)) {
+            if (iY_Value < 1200) {
+                //printf("Move up detected.\n");
+                return E_Direction::Up;
+            }    
+            else if (iY_Value > 2500) {
+                //printf("Move down detected.\n");
+                return E_Direction::Down;
+            }
+            else {
+                return E_Direction::Center;
+            }
+        } else {
+            if (iX_Value < 1200) {
+                //printf("Turn left detected.\n");
+                return E_Direction::Left;
+            }
+            else if (iX_Value > 2500) {
+                //printf("Turn right detected.\n");
+                return E_Direction::Right;
+            }
+            else {
+                return E_Direction::Center;
+            }
+        }
     }
 }
 
-void task(void *pvParameters)
+std::array<uint8_t, 8> boolArrayToImage(const bool (&array)[8][8]) {
+    std::array<uint8_t, 8> img = {0};
+    for (int y = 0; y < 8; ++y) {
+        for (int x = 0; x < 8; ++x) {
+            if (array[x][y]) {
+                img[y] |= (1 << (7 - x)); // Setze das entsprechende Bit
+            }
+        }
+    }
+    return img;
+}
+
+void IO_Task(void *pvParameters)
 {
     uint8_t image1[8] = 
     {
@@ -174,14 +199,24 @@ void task(void *pvParameters)
 
     while(true)
     {
-        max7219_draw_image_8x8(&dev, 0, image1);
+        //max7219_draw_image_8x8(&dev, 0, image1);
 
         readJoystickAdc();
         iButtonState = gpio_get_level(JOYSTICK_BUTTON); // 0 = pressed
+        eJoystickDirection = setJoystickDirection(iX_Value, iY_Value);
 
-        setJoystickState(iX_Value, iY_Value, iButtonState);
+        max7219_draw_image_8x8(&dev, 0, boolArrayToImage(snake.getBodyAsImage()).data());
        
-        vTaskDelay(pdMS_TO_TICKS(100));
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
+}
+
+void gameTask(void *pvParameters) {
+    while(true) {
+
+        snake.move(eJoystickDirection);    
+
+        vTaskDelay(pdMS_TO_TICKS(200));
     }
 }
 
@@ -212,5 +247,9 @@ extern "C" void app_main(void)
     
     init_joystick_button();
 
-    xTaskCreatePinnedToCore(task, "task", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL, APP_CPU_NUM);
+    xTaskCreatePinnedToCore(IO_Task, "IO_Task", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL, APP_CPU_NUM);
+
+    xTaskCreatePinnedToCore(gameTask, "gameTask", configMINIMAL_STACK_SIZE * 3, NULL, 5, NULL, PRO_CPU_NUM);
+
+
 }
