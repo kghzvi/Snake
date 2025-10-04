@@ -1,0 +1,21 @@
+8x8 LED Matrix:
+- VCC -> 3V
+- GND -> Ground
+- DIN -> G23
+- CS -> G5
+- CLK -> G18
+
+Joystick:
+- GND -> Ground
+- 5V -> 3V
+- VRx -> G32
+- VRy -> G33 
+- SW -> G25
+
+Switch:
+- Battery Boppel
+- 3V
+
+Kondensator:
+- lange Seite: 3V
+- kurze Seite: Ground

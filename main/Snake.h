@@ -18,13 +18,17 @@ struct ST_Pixel {
 
 class Snake {
 public:
-    Snake(int iLength, ST_Pixel stBody[64]);
+    Snake(int iLength, ST_Pixel stInitialBody[64]);
     int getLength() const;
     const ST_Pixel (&getBody() const)[64];
     const bool (&getBodyAsImage() )[8][8];
+    const ST_Pixel getNextHeadPosition();
+    bool isPixelOnBody(const ST_Pixel pixel);
+    bool snakeBitItself();
 
-    void move(enum E_Direction eDirection);
-    void grow(enum E_Direction eDirection);
+    void setDirection(enum E_Direction eDirection);
+    void move();
+    void grow();
 
 private:
     int iLength;

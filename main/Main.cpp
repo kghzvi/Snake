@@ -67,6 +67,10 @@ E_Direction eJoystickDirection = E_Direction::Right;
 ST_Pixel initialBody[64] = { {2,4}, {1,4}, {0,4} };
 Snake snake(3, initialBody);
 
+ST_Pixel stMentos = {7,7};
+
+bool arbImage[8][8];
+
 static void continuous_adc_init(adc_channel_t *channel, uint8_t channel_num, adc_continuous_handle_t *out_handle)
 {
     adc_continuous_handle_t handle = NULL;
@@ -144,7 +148,7 @@ E_Direction setJoystickDirection(int iX_Value, int iY_Value) {
         int iY_Offset = iY_Value - 1800;
 
         if (abs(iY_Offset) > abs(iX_Offset)) {
-            if (iY_Value < 1200) {
+            if (iY_Value < 1500) {
                 //printf("Move up detected.\n");
                 return E_Direction::Up;
             }    
@@ -156,7 +160,7 @@ E_Direction setJoystickDirection(int iX_Value, int iY_Value) {
                 return E_Direction::Center;
             }
         } else {
-            if (iX_Value < 1200) {
+            if (iX_Value < 1500) {
                 //printf("Turn left detected.\n");
                 return E_Direction::Left;
             }
@@ -183,6 +187,30 @@ std::array<uint8_t, 8> boolArrayToImage(const bool (&array)[8][8]) {
     return img;
 }
 
+void printImageToLogger(const bool arr[8][8]) {
+    for (int y = 0; y < 8; ++y) {
+        for (int x = 0; x < 8; ++x) {
+            printf("%c ", arr[y][x] ? '#' : '.');  // oder '1'/'0', '█'/' ', etc.
+        }
+        printf("\n");
+    }
+}
+
+ST_Pixel generateRandomMentosPosition() {
+    ST_Pixel stMentosPos;
+    do {
+        stMentosPos.x = rand() % 8;
+        stMentosPos.y = rand() % 8;
+    } while (snake.isPixelOnBody(stMentosPos)); // Stelle sicher, dass die Position nicht auf dem Schlangenkörper liegt
+    return stMentosPos;
+}
+
+void handleDeath() {
+    ST_Pixel initialBody[64] = { {2,4}, {1,4}, {0,4} };
+    snake = Snake(3, initialBody);
+    stMentos = generateRandomMentosPosition();
+}
+
 void IO_Task(void *pvParameters)
 {
     uint8_t image1[8] = 
@@ -199,22 +227,38 @@ void IO_Task(void *pvParameters)
 
     while(true)
     {
-        //max7219_draw_image_8x8(&dev, 0, image1);
-
+        // Read inputs
         readJoystickAdc();
         iButtonState = gpio_get_level(JOYSTICK_BUTTON); // 0 = pressed
         eJoystickDirection = setJoystickDirection(iX_Value, iY_Value);
 
-        max7219_draw_image_8x8(&dev, 0, boolArrayToImage(snake.getBodyAsImage()).data());
+        // Set outputs
+        std::copy(&snake.getBodyAsImage()[0][0], &snake.getBodyAsImage()[0][0] + 64, &arbImage[0][0]);
+        arbImage[stMentos.x][stMentos.y] = true;
+        max7219_draw_image_8x8(&dev, 0, boolArrayToImage(arbImage).data());
        
+        // Timeout
         vTaskDelay(pdMS_TO_TICKS(10));
     }
 }
 
 void gameTask(void *pvParameters) {
     while(true) {
+        snake.setDirection(eJoystickDirection);
 
-        snake.move(eJoystickDirection);    
+        if (snake.getNextHeadPosition().x == stMentos.x && snake.getNextHeadPosition().y == stMentos.y) {
+            // Snake eats the Mentos
+            snake.grow();
+            stMentos = generateRandomMentosPosition();
+        }
+        else {
+            snake.move();
+        }
+        
+        if (snake.snakeBitItself()) {
+            printImageToLogger(arbImage);
+            handleDeath();
+        }
 
         vTaskDelay(pdMS_TO_TICKS(200));
     }

@@ -1,9 +1,9 @@
 #include "Snake.h"
 #include <algorithm>
 
-Snake::Snake(int iLength, ST_Pixel stBody[64]) {
+Snake::Snake(int iLength, ST_Pixel stInitialBody[64]) {
     this->iLength = iLength;
-    std::copy(stBody, stBody + iLength, this->stBody);
+    std::copy(stInitialBody, stInitialBody + iLength, this->stBody);
 }
 
 int Snake::getLength() const {
@@ -30,12 +30,63 @@ const bool (&Snake::getBodyAsImage() )[8][8] {
     return arbBodyAsImage;
 }
 
-void Snake::move(enum E_Direction eDirection) {
-    // Körper nach hinten verschieben (vom Ende zum Anfang!)
-    for (int i = iLength - 1; i > 0; --i) {
-        stBody[i] = stBody[i - 1];
+const ST_Pixel Snake::getNextHeadPosition() {
+    ST_Pixel nextHead = stBody[0];
+
+    switch (eDirection) {
+        case E_Direction::Up:
+            nextHead.y -= 1;
+            break;
+        case E_Direction::Down:
+            nextHead.y += 1;
+            break;
+        case E_Direction::Left:
+            nextHead.x -= 1;
+            break;
+        case E_Direction::Right:
+            nextHead.x += 1;
+            break;
+        case E_Direction::Center:
+            // Do nothing
+            break;
     }
 
+    // Wrap around screen edges
+    if (nextHead.x > 7) {
+        nextHead.x = 0;
+    } else if (nextHead.x < 0) {
+        nextHead.x = 7;
+    }
+
+    if (nextHead.y > 7) {
+        nextHead.y = 0;
+    } else if (nextHead.y < 0) {
+        nextHead.y = 7;
+    }
+
+    return nextHead;
+}
+
+bool Snake::isPixelOnBody(const ST_Pixel pixel) {
+    for (int i = 0; i < iLength; i++) {
+        if (stBody[i].x == pixel.x && stBody[i].y == pixel.y) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool Snake::snakeBitItself() {
+    ST_Pixel head = stBody[0];
+    for (int i = 1; i < iLength; i++) {
+        if (stBody[i].x == head.x && stBody[i].y == head.y) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void Snake::setDirection(enum E_Direction eDirection) {
     // Make sure the head does not turn 180 degrees
     if (eDirection == E_Direction::Up && this->eDirection != E_Direction::Down) {
         this->eDirection = eDirection;
@@ -48,6 +99,16 @@ void Snake::move(enum E_Direction eDirection) {
     }
     else if (eDirection == E_Direction::Right && this->eDirection != E_Direction::Left) {
         this->eDirection = eDirection;
+    }
+    else if (eDirection == E_Direction::Center) {
+        // Do nothing
+    }
+}
+
+void Snake::move() {
+    // Körper nach hinten verschieben (vom Ende zum Anfang!)
+    for (int i = iLength - 1; i > 0; --i) {
+        stBody[i] = stBody[i - 1];
     }
         
     switch (this->eDirection) {
@@ -90,7 +151,7 @@ void Snake::move(enum E_Direction eDirection) {
     }
 }
 
-void Snake::grow(enum E_Direction eDirection) {
-    move(eDirection);
+void Snake::grow() {
     iLength++;
+    move();
 }
